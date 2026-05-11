@@ -116,6 +116,12 @@ Rules:
 - experience: Array of experience objects (array or null)
   - Each entry must have "job_title", "company", "duration", "description" (strings or null)
 - communication_quality: Assessment of written communication: "excellent", "good", "average", "poor", or null
+  IMPORTANT: Be STRICT in this assessment.
+  - "excellent": Only for exceptionally well-structured resumes with perfect grammar and clear organization
+  - "good": Clear, well-organized with minor issues
+  - "average": Readable but could be clearer, some organizational issues (MOST RESUMES SHOULD BE HERE)
+  - "poor": Difficult to follow, multiple errors or unclear points
+  Do NOT overrate. Most resumes should be "average" or "good".
 
 Return ONLY the JSON object, nothing else."""
 
