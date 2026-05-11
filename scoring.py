@@ -259,14 +259,17 @@ def calculate_skill_score(
     # Semantic matching has higher weight because it's more accurate
     final_similarity = (keyword_match * 0.4) + (semantic_match * 0.6)
     
-    # Apply rubric - corrected logic
+    # Apply rubric - three-tier system for skills scoring
+    # Tier 1: <30% → 0 points (insufficient match)
+    # Tier 2: 30-85% → 5 points (moderate match)
+    # Tier 3: >85% → 10 points (excellent match)
     if final_similarity < 0.30:
         score = 0
-        reasoning = f"Less than 30% skills match ({final_similarity*100:.0f}%)"
-    elif final_similarity < 0.85:
+        reasoning = f"Insufficient skills match ({final_similarity*100:.0f}%)"
+    elif 0.30 <= final_similarity < 0.85:
         score = 5
         reasoning = f"Moderate skills match ({final_similarity*100:.0f}%)"
-    else:
+    else:  # >= 0.85
         score = 10
         reasoning = f"Excellent skills match ({final_similarity*100:.0f}%)"
     
@@ -293,33 +296,62 @@ def calculate_skill_score(
 
 def calculate_experience_score(
     candidate_experience: List[Dict[str, Any]],
-    strengths: List[str]
+    strengths: List[str],
+    projects: Optional[List[Dict[str, Any]]] = None,
+    project_relevance: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Score experience relevance using multiple deterministic factors.
     
-    Rubric:
+    Fresher-Friendly Rubric:
     - unrelated domain → 0 points
-    - adjacent domain → 5 points
+    - adjacent domain OR strong projects/portfolio → 5 points
     - exact domain and seniority → 10 points
+    
+    For freshers with no full-time experience:
+    - Strong academic/project experience (projects list present) → 5 points
+    - This compensates for lack of professional experience
     
     Factors analyzed:
     1. Years of experience (seniority level)
     2. Job title similarity (backend/frontend/etc)
     3. Domain keywords (relevant technologies)
-    4. LLM strengths as supporting signal only
+    4. Projects/internships/hackathons/open source work (for freshers)
+    5. LLM strengths as supporting signal only
     
     Args:
         candidate_experience (List[Dict]): Candidate's experience data.
         strengths (List[str]): Strengths identified by LLM analysis (supporting only).
+        projects (Optional[List[Dict]]): Candidate's projects (for fresher compensation).
+        project_relevance (Optional[str]): Project relevance assessment ("high", "medium", "low").
     
     Returns:
         Dict with score (0-10) and justification.
     """
     if not candidate_experience:
+        # FRESHER LOGIC: No professional experience, but check for projects
+        has_projects = projects and len(projects) > 0
+        project_strength = project_relevance in ["high", "medium"]
+        
+        if has_projects and project_strength:
+            return {
+                "score": 5,
+                "justification": "Strong academic/project experience for fresher role",
+                "is_fresher": True,
+                "experience_count": 0,
+                "total_years": 0,
+                "project_count": len(projects) if projects else 0,
+                "compensated_by_projects": True
+            }
+        
         return {
             "score": 0,
-            "justification": "No experience information provided"
+            "justification": "No experience information provided",
+            "is_fresher": True,
+            "experience_count": 0,
+            "total_years": 0,
+            "project_count": len(projects) if projects else 0,
+            "compensated_by_projects": False
         }
     
     # Extract experience details
@@ -376,7 +408,9 @@ def calculate_experience_score(
         "justification": reasoning,
         "experience_count": len(candidate_experience),
         "total_years": total_years,
-        "has_seniority": has_seniority
+        "has_seniority": has_seniority,
+        "is_fresher": False,
+        "compensated_by_projects": False
     }
 
 
@@ -612,7 +646,12 @@ def score_candidate(
         
         # Calculate individual scores
         skills_result = calculate_skill_score(jd_skills, matching_skills, resume_skills)
-        experience_result = calculate_experience_score(candidate_experience, strengths)
+        experience_result = calculate_experience_score(
+            candidate_experience,
+            strengths,
+            projects,
+            project_relevance
+        )
         education_result = calculate_education_score(
             jd_data.get("education"),
             candidate_education,
