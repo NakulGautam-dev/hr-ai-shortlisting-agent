@@ -50,7 +50,10 @@ def extract_text_from_pdf(file_path: str) -> Optional[str]:
 
 def get_pdfs_from_uploads(uploads_dir: str = "uploads") -> List[str]:
     """
-    Get a list of all PDF files in the uploads directory.
+    Get a list of all PDF files in the uploads directory and subdirectories.
+    
+    Supports both flat structure (uploads/*.pdf) and nested structure 
+    (uploads/jd/*.pdf, uploads/resumes/*.pdf) for frontend compatibility.
 
     Args:
         uploads_dir (str): Path to the uploads directory (default: "uploads").
@@ -63,7 +66,8 @@ def get_pdfs_from_uploads(uploads_dir: str = "uploads") -> List[str]:
         print(f"Uploads directory '{uploads_dir}' does not exist.")
         return []
 
-    pdf_files = list(uploads_path.glob("*.pdf"))
+    # Search for PDFs recursively in all subdirectories
+    pdf_files = list(uploads_path.rglob("*.pdf"))
     return [str(pdf.resolve()) for pdf in pdf_files]
 
 

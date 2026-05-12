@@ -99,16 +99,26 @@ class HRShortlistingPipeline:
             print("✗ No PDF files found in uploads folder")
             return False
         
-        # Find JD PDF (first one with 'jd' in filename)
+        # Find JD PDF - prioritize from jd/ subdirectory, fallback to filename check
         jd_pdf = None
+        jd_dir = Path(self.uploads_dir) / "jd"
+        
+        # First, look for PDFs in uploads/jd/ directory
         for pdf_path in all_pdfs:
-            filename = Path(pdf_path).name.lower()
-            if "jd" in filename or "job" in filename or "description" in filename:
+            if str(jd_dir) in str(pdf_path):
                 jd_pdf = pdf_path
                 break
         
+        # Fallback: look for 'jd', 'job', or 'description' in filename
         if not jd_pdf:
-            print("✗ No Job Description PDF found (name should contain 'jd')")
+            for pdf_path in all_pdfs:
+                filename = Path(pdf_path).name.lower()
+                if "jd" in filename or "job" in filename or "description" in filename:
+                    jd_pdf = pdf_path
+                    break
+        
+        if not jd_pdf:
+            print("✗ No Job Description PDF found (should be in uploads/jd/ or filename with 'jd')")
             return False
         
         # Extract JD text
@@ -302,12 +312,24 @@ class HRShortlistingPipeline:
         # Step 3-7: Process resumes
         all_pdfs = get_pdfs_from_uploads(self.uploads_dir)
         resume_pdfs = []
+        resumes_dir = Path(self.uploads_dir) / "resumes"
+        jd_dir = Path(self.uploads_dir) / "jd"
         
-        # Filter out JD from resume list
+        # Filter resumes - prioritize from resumes/ subdirectory, fallback to filename check
         for pdf_path in all_pdfs:
-            filename = Path(pdf_path).name.lower()
-            if not ("jd" in filename or "job" in filename or "description" in filename):
+            pdf_path_str = str(pdf_path)
+            
+            # Include PDFs from uploads/resumes/ directory
+            if str(resumes_dir) in pdf_path_str:
                 resume_pdfs.append(pdf_path)
+            # Exclude PDFs from uploads/jd/ directory
+            elif str(jd_dir) in pdf_path_str:
+                continue
+            # Fallback: exclude by filename check
+            else:
+                filename = Path(pdf_path).name.lower()
+                if not ("jd" in filename or "job" in filename or "description" in filename):
+                    resume_pdfs.append(pdf_path)
         
         if not resume_pdfs:
             print("✗ No resume PDFs found in uploads folder")
