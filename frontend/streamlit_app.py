@@ -33,6 +33,7 @@ import backend_connector
 import utils
 import dashboard
 import charts
+import candidate_view
 
 # ==============================================================================
 # PAGE CONFIGURATION
@@ -601,176 +602,21 @@ def page_rankings():
 
 
 def page_candidate_analysis():
-    """Render detailed analysis for a selected candidate."""
+    """Render detailed analysis for a selected candidate using the candidate_view module."""
     st.title("🔍 Candidate Analysis")
     st.markdown("---")
     
     if st.session_state.candidates_df is None or len(st.session_state.candidates_df) == 0:
-        st.info("📁 Select a batch file from the sidebar to view candidate analysis")
+        st.info("📁 Analyze resumes to view detailed candidate insights")
         return
     
-    df = st.session_state.candidates_df
-    
-    # Candidate selector
-    candidate_names = df["candidate_name"].unique()
-    selected_candidate_name = st.selectbox("Select Candidate", candidate_names, key="candidate_selector")
-    
-    # Get candidate data
-    candidate_data = df[df["candidate_name"] == selected_candidate_name].iloc[0]
-    
-    # Candidate header
-    col1, col2, col3 = st.columns([0.6, 0.2, 0.2])
-    
-    with col1:
-        st.markdown(f"## {candidate_data['candidate_name']}")
-    
-    with col2:
-        status, _ = get_candidate_status(candidate_data["final_score"])
-        st.markdown(render_status_badge(status), unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(render_score_badge(candidate_data["final_score"]), unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Rank and recommendation
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.metric("Rank", f"#{candidate_data.get('rank', 'N/A')}")
-    
-    with col2:
-        if candidate_data["final_score"] >= 75:
-            rec_text = "✅ Strong candidate. Recommended for interview."
-            rec_color = "#10b981"
-        elif candidate_data["final_score"] >= 50:
-            rec_text = "⚠️ Moderate candidate. Further evaluation recommended."
-            rec_color = "#f59e0b"
-        else:
-            rec_text = "❌ Candidate does not meet requirements."
-            rec_color = "#ef4444"
-        
-        st.markdown(f"<p style='color: {rec_color}; font-weight: bold; font-size: 1.1rem'>{rec_text}</p>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Score breakdown - Radar chart
-    st.subheader("📊 Score Breakdown")
-    
-    if "components" in candidate_data and isinstance(candidate_data["components"], dict):
-        components = candidate_data["components"]
-    else:
-        components = {
-            "skills": candidate_data.get("skills_score", 5),
-            "experience": candidate_data.get("experience_score", 5),
-            "education": candidate_data.get("education_score", 5),
-            "projects": candidate_data.get("projects_score", 5),
-            "communication": candidate_data.get("communication_score", 5)
-        }
-    
-    # Radar chart
-    fig = go.Figure(data=go.Scatterpolar(
-        r=[components.get(key, 0) for key in ["skills", "experience", "education", "projects", "communication"]],
-        theta=["Skills", "Experience", "Education", "Projects", "Communication"],
-        fill="toself",
-        name="Score",
-        line_color="rgba(102, 126, 234, 1)",
-        fillcolor="rgba(102, 126, 234, 0.3)"
-    ))
-    
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 10])),
-        showlegend=False,
-        template="plotly_white",
-        height=400
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Component details
-    st.subheader("📋 Component Details")
-    
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    component_details = {
-        "Skills": ("skills", col1),
-        "Experience": ("experience", col2),
-        "Education": ("education", col3),
-        "Projects": ("projects", col4),
-        "Communication": ("communication", col5)
-    }
-    
-    for comp_name, (comp_key, comp_col) in component_details.items():
-        score = components.get(comp_key, 0)
-        with comp_col:
-            color = get_score_color(score)
-            st.markdown(f"**{comp_name}**")
-            st.markdown(f"<p style='font-size: 2rem; color: {color}; font-weight: bold; text-align: center'>{score:.0f}/10</p>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Analysis details
-    st.subheader("📝 Detailed Analysis")
-    
-    if "analysis" in candidate_data and isinstance(candidate_data["analysis"], dict):
-        analysis = candidate_data["analysis"]
-        
-        # Strengths
-        if "strengths" in analysis and analysis["strengths"]:
-            st.markdown("**✅ Strengths:**")
-            for strength in analysis["strengths"]:
-                st.markdown(f"• {strength}")
-            st.markdown("")
-        
-        # Weaknesses
-        if "weaknesses" in analysis and analysis["weaknesses"]:
-            st.markdown("**⚠️ Weaknesses:**")
-            for weakness in analysis["weaknesses"]:
-                st.markdown(f"• {weakness}")
-            st.markdown("")
-        
-        # Skills analysis
-        if "matching_skills" in analysis or "matched_skills" in analysis:
-            matched = analysis.get("matching_skills") or analysis.get("matched_skills", [])
-            missing = analysis.get("missing_skills", [])
-            
-            st.markdown("**🎯 Skills Analysis:**")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if matched:
-                    st.markdown("**Matched Skills:**")
-                    for skill in matched[:5]:
-                        if isinstance(skill, dict):
-                            st.markdown(f"✅ {skill.get('jd_skill', skill)}")
-                        else:
-                            st.markdown(f"✅ {skill}")
-            
-            with col2:
-                if missing:
-                    st.markdown("**Missing Skills:**")
-                    for skill in missing[:5]:
-                        st.markdown(f"❌ {skill}")
-        
-        # Overall summary
-        if "overall_summary" in analysis:
-            st.markdown("**📌 Summary:**")
-            st.markdown(analysis["overall_summary"])
-    else:
-        st.info("Detailed analysis not available for this candidate")
-    
-    st.markdown("---")
-    
-    # Export candidate report
-    st.subheader("📄 Export Options")
-    
-    json_report = json.dumps(candidate_data.to_dict(), indent=2, default=str)
-    st.download_button(
-        label="📥 Download Candidate Report (JSON)",
-        data=json_report,
-        file_name=f"candidate_{selected_candidate_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-        mime="application/json"
-    )
+    # Convert DataFrame to list of dicts (candidate results format)
+    try:
+        candidate_results = st.session_state.batch_data if st.session_state.batch_data else []
+        candidate_view.render_candidate_view(candidate_results)
+    except Exception as e:
+        st.error(f"Error rendering candidate analysis: {str(e)}")
+        st.info("Please ensure batch data is loaded correctly from the backend")
 
 
 def page_analytics():

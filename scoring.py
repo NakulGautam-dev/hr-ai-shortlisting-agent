@@ -252,12 +252,12 @@ def calculate_skill_score(
     keyword_match = calculate_keyword_skill_match(jd_skills, resume_skills)
     
     # Calculate semantic match using skill-by-skill comparison
-    semantic_result = calculate_semantic_skill_match(jd_skills, resume_skills, threshold=0.72)
+    semantic_result = calculate_semantic_skill_match(jd_skills, resume_skills, threshold=0.65)
     semantic_match = semantic_result["match_percentage"]
     
-    # Combine: keyword (40% weight) + semantic (60% weight)
+    # Combine: keyword (20% weight) + semantic (80% weight)
     # Semantic matching has higher weight because it's more accurate
-    final_similarity = (keyword_match * 0.4) + (semantic_match * 0.6)
+    final_similarity = (keyword_match * 0.2) + (semantic_match * 0.8)
     
     # Apply rubric - three-tier system for skills scoring
     # Tier 1: <30% → 0 points (insufficient match)
