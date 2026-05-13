@@ -53,40 +53,53 @@ def normalize_skill_name(skill: str) -> str:
 def calculate_semantic_skill_match(
     jd_skills: List[str],
     resume_skills: List[str],
-    threshold: float = 0.72
+    threshold: float = 0.65
 ) -> Dict[str, Any]:
     """
-    Calculate semantic skill match using skill-by-skill comparison.
+    Calculate semantic skill match using skill-by-skill comparison with continuous scoring.
     
-    For each JD skill, compares against all resume skills and takes the
-    highest cosine similarity. Uses embeddings for semantic understanding.
+    IMPROVED LOGIC (v2.0):
+    Instead of binary matched/unmatched, returns continuous similarity scores.
+    For each JD skill, finds the best matching resume skill and captures the similarity.
     
     Example:
-    JD skill: "REST API"
-    Resume has: "REST APIs", "API Development", "Backend"
+    JD: ["React", "Node.js", "MongoDB"]
+    Resume: ["React.js", "Express.js", "MongoDB Atlas"]
     
-    Compares "REST API" against each, takes highest match.
+    Results:
+    - React → React.js: 0.92 similarity
+    - Node.js → Express.js: 0.71 similarity  
+    - MongoDB → MongoDB Atlas: 0.89 similarity
+    
+    Average similarity: (0.92 + 0.71 + 0.89) / 3 = 0.84 (CONTINUOUS, not binary)
     
     Args:
         jd_skills (List[str]): Required skills from JD.
         resume_skills (List[str]): Skills listed in resume.
-        threshold (float): Minimum similarity to count as match (default: 0.72 for fresher hiring).
+        threshold (float): Used ONLY for reporting matched/unmatched (default: 0.65).
+                          Does NOT affect final similarity score calculation.
     
     Returns:
         Dict with:
-        - match_percentage: Percentage of JD skills matched (0-1)
-        - matched_skills: List of (jd_skill, resume_skill, similarity)
-        - unmatched_skills: List of JD skills that didn't match
+        - semantic_average: Average similarity across all JD skills (0-1, CONTINUOUS)
+        - matched_skills: List of (jd_skill, resume_skill, similarity) where similarity >= threshold
+        - unmatched_skills: List of JD skills where best similarity < threshold
+        - top_skill_similarities: All JD skills with their best matches (for transparency)
+        - threshold_used: Threshold value used for reporting
     """
     if not jd_skills or not resume_skills:
         return {
-            "match_percentage": 0.0,
+            "semantic_average": 0.0,
             "matched_skills": [],
-            "unmatched_skills": jd_skills if jd_skills else []
+            "unmatched_skills": jd_skills if jd_skills else [],
+            "top_skill_similarities": [],
+            "threshold_used": threshold
         }
     
     matched_skills = []
     unmatched_skills = []
+    all_similarities = []  # Store ALL similarities for averaging
+    top_skill_similarities = []  # For transparency
     matched_resume_indices = set()  # Prevent duplicate matches
     
     try:
@@ -122,7 +135,19 @@ def calculate_semantic_skill_match(
                     best_similarity = similarity
                     best_match_idx = idx
             
-            # If best match exceeds threshold, count as matched
+            # IMPROVED: Always collect similarity (even if below threshold)
+            # This contributes to the continuous scoring
+            all_similarities.append(best_similarity)
+            
+            # Track best match for transparency
+            if best_match_idx >= 0:
+                top_skill_similarities.append({
+                    "jd_skill": jd_skill,
+                    "best_resume_skill": resume_skills[best_match_idx],
+                    "similarity": float(best_similarity)
+                })
+            
+            # Use threshold ONLY for reporting matched vs unmatched
             if best_similarity >= threshold and best_match_idx >= 0:
                 matched_skills.append({
                     "jd_skill": jd_skill,
@@ -133,22 +158,26 @@ def calculate_semantic_skill_match(
             else:
                 unmatched_skills.append(jd_skill)
         
-        # Calculate match percentage
-        match_percentage = len(matched_skills) / len(jd_skills) if jd_skills else 0.0
+        # IMPROVED: Calculate semantic_average from ALL similarities
+        # This gives continuous scoring instead of binary
+        semantic_average = sum(all_similarities) / len(all_similarities) if all_similarities else 0.0
         
         return {
-            "match_percentage": match_percentage,
-            "matched_skills": matched_skills,
-            "unmatched_skills": unmatched_skills,
+            "semantic_average": float(semantic_average),  # CONTINUOUS scoring (0-1)
+            "matched_skills": matched_skills,             # For reporting only
+            "unmatched_skills": unmatched_skills,         # For reporting only
+            "top_skill_similarities": top_skill_similarities,  # Full transparency
             "threshold_used": threshold
         }
     
     except Exception as e:
         print(f"Error in semantic skill matching: {e}")
         return {
-            "match_percentage": 0.0,
+            "semantic_average": 0.0,
             "matched_skills": [],
-            "unmatched_skills": jd_skills if jd_skills else []
+            "unmatched_skills": jd_skills if jd_skills else [],
+            "top_skill_similarities": [],
+            "threshold_used": threshold
         }
 
 
@@ -226,50 +255,105 @@ def calculate_keyword_skill_match(jd_skills: List[str], resume_skills: List[str]
 def calculate_skill_score(
     jd_skills: List[str],
     matching_skills: List[str],
-    resume_skills: List[str]
+    resume_skills: List[str],
+    analysis_data: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Score skills match using improved semantic skill-by-skill comparison.
+    Score skills match using improved semantic skill-by-skill comparison (v2.0).
     
-    Uses two approaches:
-    1. Keyword matching (40% weight) - Exact string matches
-    2. Semantic matching (60% weight) - Skill-by-skill embeddings
+    IMPROVEMENTS IN v2.0:
+    =====================
     
-    Rubric:
-    - <30% → 0 points
-    - 50-70% → 5 points
-    - >85% → 10 points
+    1. CONTINUOUS SEMANTIC SCORING
+       - Old: Binary matched/unmatched only
+       - New: Average similarity from 0-1 across all skills
+       - Benefits: Strong candidates no longer get unfair 0
+    
+    2. SOFTER WEIGHTED FORMULA
+       - Old: (keyword * 0.2) + (semantic * 0.8)
+       - New: (keyword * 0.15) + (semantic_avg * 0.65) + (gemini_support * 0.20)
+       - Benefits: More realistic, more HR-friendly
+    
+    3. IMPROVED RUBRIC (more forgiving)
+       - Old: <30%→0, 30-85%→5, >85%→10
+       - New: <40%→2, 40-60%→5, 60-80%→8, >=80%→10
+       - Benefits: Rewards partial matches, prevents harsh zeros
+    
+    4. GEMINI AS SUPPORT SIGNAL ONLY
+       - Gemini does not directly score
+       - Only acts as supporting signal (max 20% weight)
+       - Python remains the decision maker
+    
+    Example of improvement:
+    
+    JD: ["React", "Node.js", "MongoDB"]
+    Resume: ["React.js", "Express.js", "MongoDB Atlas"]
+    
+    OLD LOGIC:
+    - Only React matched (threshold 0.65)
+    - Match percentage: 1/3 = 33% → Score: 5 points
+    - Candidate unfairly scored even though skills are semantically related
+    
+    NEW LOGIC:
+    - Similarities: 0.92, 0.71, 0.89
+    - semantic_average: (0.92 + 0.71 + 0.89)/3 = 0.84
+    - final_similarity: (0.15*keyword) + (0.65*0.84) + (0.20*0.84) = 0.83
+    - Score: 8 points (fair for strong candidate)
+    - Plus transparent output showing all 3 matched skills
     
     Args:
         jd_skills (List[str]): Required skills from JD.
         matching_skills (List[str]): Skills that match (from LLM analysis).
         resume_skills (List[str]): All skills listed in resume.
+        analysis_data (Optional[Dict]): LLM analysis data with optional semantic_relevance_score.
     
     Returns:
-        Dict with score (0-10) and justification with matching details.
+        Dict with score (0-10) and comprehensive justification with:
+        - semantic_average: Continuous similarity score
+        - gemini_support: Supporting signal value
+        - top_skill_similarities: All matched skills with similarities
+        - matched_skill_pairs: Human-readable matched pairs
+        - unmatched_skills: Skills not matched (for reference)
     """
-    # Calculate keyword match percentage
+    # Calculate keyword match percentage (0-1)
     keyword_match = calculate_keyword_skill_match(jd_skills, resume_skills)
     
-    # Calculate semantic match using skill-by-skill comparison
+    # Calculate semantic match using improved skill-by-skill comparison
     semantic_result = calculate_semantic_skill_match(jd_skills, resume_skills, threshold=0.65)
-    semantic_match = semantic_result["match_percentage"]
+    semantic_average = semantic_result["semantic_average"]  # CONTINUOUS (0-1), not binary
     
-    # Combine: keyword (20% weight) + semantic (80% weight)
-    # Semantic matching has higher weight because it's more accurate
-    final_similarity = (keyword_match * 0.2) + (semantic_match * 0.8)
+    # IMPROVED: Extract or calculate Gemini support signal (0-1)
+    # If analysis_data provided with semantic_relevance_score, use it
+    # Otherwise, use semantic_average as fallback (conservative approach)
+    gemini_support = 0.0
+    if analysis_data and "semantic_relevance_score" in analysis_data:
+        gemini_support = float(analysis_data.get("semantic_relevance_score", 0.0))
+        # Ensure it's in valid range
+        gemini_support = max(0.0, min(1.0, gemini_support))
+    else:
+        # Fallback: use semantic_average (Gemini not provided)
+        # This ensures consistent scoring even without explicit Gemini input
+        gemini_support = semantic_average
     
-    # Apply rubric - three-tier system for skills scoring
-    # Tier 1: <30% → 0 points (insufficient match)
-    # Tier 2: 30-85% → 5 points (moderate match)
-    # Tier 3: >85% → 10 points (excellent match)
-    if final_similarity < 0.30:
-        score = 0
-        reasoning = f"Insufficient skills match ({final_similarity*100:.0f}%)"
-    elif 0.30 <= final_similarity < 0.85:
+    # IMPROVED: New weighted formula (softer, more realistic)
+    # Old: (keyword * 0.2) + (semantic * 0.8)
+    # New: Balanced between keywords, semantic understanding, and LLM support
+    final_similarity = (keyword_match * 0.15) + (semantic_average * 0.65) + (gemini_support * 0.20)
+    
+    # IMPROVED: Softer rubric (more forgiving than old harsh tier system)
+    # Old: <30%→0, 30-85%→5, >85%→10
+    # New: <40%→2, 40-60%→5, 60-80%→8, >=80%→10
+    # This prevents unfair zeros for candidates with partial matches
+    if final_similarity < 0.40:
+        score = 2
+        reasoning = f"Limited skills match ({final_similarity*100:.0f}%)"
+    elif 0.40 <= final_similarity < 0.60:
         score = 5
         reasoning = f"Moderate skills match ({final_similarity*100:.0f}%)"
-    else:  # >= 0.85
+    elif 0.60 <= final_similarity < 0.80:
+        score = 8
+        reasoning = f"Good skills match ({final_similarity*100:.0f}%)"
+    else:  # >= 0.80
         score = 10
         reasoning = f"Excellent skills match ({final_similarity*100:.0f}%)"
     
@@ -279,18 +363,220 @@ def calculate_skill_score(
         for m in semantic_result["matched_skills"]
     ]
     
+    # NEW: Include top skill similarities for full transparency
+    top_skill_matches = semantic_result.get("top_skill_similarities", [])
+    
     return {
         "score": score,
         "justification": reasoning,
         "details": {
             "keyword_match": f"{keyword_match*100:.1f}%",
-            "semantic_match": f"{semantic_match*100:.1f}%",
+            "semantic_average": f"{semantic_average*100:.1f}%",  # NEW: Continuous score
+            "gemini_support": f"{gemini_support*100:.1f}%",       # NEW: LLM support signal
             "final_match": f"{final_similarity*100:.1f}%",
             "matched_skills_count": len(semantic_result["matched_skills"]),
             "unmatched_skills_count": len(semantic_result["unmatched_skills"]),
             "matched_skill_pairs": matched_skill_pairs,
-            "unmatched_skills": semantic_result["unmatched_skills"]
+            "unmatched_skills": semantic_result["unmatched_skills"],
+            "top_skill_similarities": top_skill_matches  # NEW: Full transparency
         }
+    }
+
+
+def _detect_fresher_status(total_years: float) -> bool:
+    """Detect if candidate is a fresher (no or minimal professional experience)."""
+    return total_years < 1.0
+
+
+def _detect_project_strength_indicators(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Analyze a project for strength indicators showing production-level work.
+    
+    Indicators analyzed:
+    - deployment status (deployed, live, production, live)
+    - real users or impact (users, visitors, downloads, revenue)
+    - scalability (scalable, scaling, performance, optimization)
+    - real-time features (real-time, live, streaming, analytics)
+    - advanced tech (AI-powered, ML, dashboard, analytics, authentication)
+    - cloud/DevOps (Docker, cloud, AWS, GCP, Azure, Kubernetes)
+    - full-stack (full-stack, end-to-end, backend, frontend)
+    
+    Returns:
+        Dict with indicators found and overall strength level.
+    """
+    if not project:
+        return {
+            "deployed": False,
+            "real_users": False,
+            "measurable_impact": False,
+            "scalable": False,
+            "advanced_tech": False,
+            "cloud_devops": False,
+            "full_stack": False,
+            "strength_level": 0
+        }
+    
+    # Combine all project text for analysis
+    project_text = " ".join([
+        project.get("title", ""),
+        project.get("description", ""),
+        project.get("technologies", ""),
+        project.get("details", "")
+    ]).lower()
+    
+    indicators = {
+        "deployed": False,
+        "real_users": False,
+        "measurable_impact": False,
+        "scalable": False,
+        "advanced_tech": False,
+        "cloud_devops": False,
+        "full_stack": False,
+        "strength_level": 0
+    }
+    
+    # Check for deployment indicators
+    deployment_keywords = ["deployed", "live", "production", "live on", "published", "hosted"]
+    indicators["deployed"] = any(kw in project_text for kw in deployment_keywords)
+    
+    # Check for real users/impact
+    user_impact_keywords = [
+        "users", "visitors", "downloads", "revenue", "₹", "$", "payments", 
+        "subscribers", "active", "traffic", "requests", "deployed for"
+    ]
+    indicators["real_users"] = any(kw in project_text for kw in user_impact_keywords)
+    
+    # Check for numeric metrics (e.g., "1000+ users", "15K visitors", "₹4000 revenue")
+    import re
+    numeric_pattern = r'\d+[K+%]*\s*(?:users|visitors|downloads|revenue|subscribers|active|visits|requests)'
+    indicators["measurable_impact"] = bool(re.search(numeric_pattern, project_text))
+    
+    # Check for scalability keywords
+    scalability_keywords = ["scalable", "scaling", "performance", "optimization", "efficient", "latency"]
+    indicators["scalable"] = any(kw in project_text for kw in scalability_keywords)
+    
+    # Check for advanced tech
+    advanced_tech_keywords = ["ai", "ml", "machine learning", "dashboard", "analytics", 
+                             "authentication", "real-time", "streaming", "recommendation"]
+    indicators["advanced_tech"] = any(kw in project_text for kw in advanced_tech_keywords)
+    
+    # Check for cloud/DevOps
+    cloud_devops_keywords = ["docker", "kubernetes", "cloud", "aws", "gcp", "azure", 
+                            "ci/cd", "deployment", "containerized"]
+    indicators["cloud_devops"] = any(kw in project_text for kw in cloud_devops_keywords)
+    
+    # Check for full-stack
+    fullstack_keywords = ["full-stack", "end-to-end", "backend", "frontend", "mern", "mean"]
+    indicators["full_stack"] = any(kw in project_text for kw in fullstack_keywords)
+    
+    # Calculate strength level based on indicators (0-7 range)
+    strength_count = sum([
+        indicators["deployed"],
+        indicators["real_users"],
+        indicators["scalable"],
+        indicators["advanced_tech"],
+        indicators["cloud_devops"],
+        indicators["full_stack"]
+    ])
+    
+    indicators["strength_level"] = min(strength_count, 7)
+    
+    return indicators
+
+
+def _evaluate_fresher_projects(projects: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Evaluate fresher's projects for experience credit.
+    
+    Fresher Project Rubric:
+    - No/weak projects → 0-3 points
+    - Basic academic projects → 4-5 points
+    - Good deployed projects → 6-7 points
+    - Strong production-level → 8-9 points
+    - Exceptional real-world impact → 10 points
+    
+    Returns:
+        Dict with fresher_strength_level, details, and score recommendation.
+    """
+    if not projects or len(projects) == 0:
+        return {
+            "fresher_strength_level": 0,
+            "project_count": 0,
+            "deployment_detected": False,
+            "measurable_impact_detected": False,
+            "top_project_strength": 0,
+            "average_project_strength": 0,
+            "score": 0,
+            "reasoning": "No projects provided"
+        }
+    
+    # Analyze each project
+    project_analyses = []
+    total_strength = 0
+    deployed_count = 0
+    impact_count = 0
+    
+    for project in projects:
+        analysis = _detect_project_strength_indicators(project)
+        project_analyses.append(analysis)
+        total_strength += analysis["strength_level"]
+        
+        if analysis["deployed"]:
+            deployed_count += 1
+        if analysis["measurable_impact"]:
+            impact_count += 1
+    
+    # Calculate metrics
+    project_count = len(projects)
+    average_strength = total_strength / project_count if project_count > 0 else 0
+    top_strength = max([p["strength_level"] for p in project_analyses]) if project_analyses else 0
+    
+    # Determine fresher strength level and score
+    deployment_detected = deployed_count > 0
+    measurable_impact_detected = impact_count > 0
+    
+    # Score mapping for freshers:
+    # 0-1 average strength + no deployment → 0-3 (weak/no projects)
+    # 1-2 average strength → 4-5 (basic academic)
+    # 2-3 average strength + deployment → 6-7 (good deployed)
+    # 4-5 average strength + deployment → 8-9 (strong production)
+    # 5+ average strength + impact → 10 (exceptional)
+    
+    if average_strength < 1.0:
+        score = 2 if project_count > 0 else 0
+        reasoning = "Weak or minimal project experience"
+    elif average_strength < 2.0:
+        score = 5
+        reasoning = "Basic academic/hobby projects without deployment"
+    elif average_strength < 3.0 and deployment_detected:
+        score = 7
+        reasoning = "Good deployed projects with production-level features"
+    elif average_strength >= 4.0 and deployment_detected:
+        if measurable_impact_detected:
+            score = 10
+            reasoning = f"Exceptional real-world impact: {project_count} projects with {deployed_count} deployed and measurable metrics"
+        else:
+            score = 9
+            reasoning = f"Strong production-level projects: {project_count} deployed projects with advanced features"
+    elif deployment_detected:
+        score = 8
+        reasoning = f"Strong deployed projects: {project_count} projects with advanced technology stack"
+    else:
+        score = 5
+        reasoning = "Projects present but lack deployment/production indicators"
+    
+    return {
+        "fresher_strength_level": min(top_strength, 10),  # Cap at 10 for rubric compatibility
+        "project_count": project_count,
+        "deployment_detected": deployment_detected,
+        "measurable_impact_detected": measurable_impact_detected,
+        "deployed_count": deployed_count,
+        "impact_count": impact_count,
+        "top_project_strength": top_strength,
+        "average_project_strength": round(average_strength, 2),
+        "score": score,
+        "reasoning": reasoning,
+        "project_analyses": project_analyses
     }
 
 
@@ -301,104 +587,159 @@ def calculate_experience_score(
     project_relevance: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Score experience relevance using multiple deterministic factors.
+    Score experience relevance using intelligent fresher-aware evaluation.
     
-    Fresher-Friendly Rubric:
-    - unrelated domain → 0 points
-    - adjacent domain OR strong projects/portfolio → 5 points
-    - exact domain and seniority → 10 points
+    IMPROVED LOGIC (v3.0 - Fresher-Friendly):
     
-    For freshers with no full-time experience:
-    - Strong academic/project experience (projects list present) → 5 points
-    - This compensates for lack of professional experience
+    For professionals (>= 1 year experience):
+    - unrelated domain → 0-3 points
+    - adjacent domain OR relevant projects → 5 points
+    - exact domain with seniority → 8-10 points
+    
+    For freshers (< 1 year experience):
+    - Evaluate projects for production-level indicators
+    - Weak/no projects → 0-3 points
+    - Basic academic projects → 4-5 points
+    - Good deployed projects → 6-7 points
+    - Strong production-level → 8-9 points
+    - Exceptional real-world impact → 10 points
+    
+    Real-world indicators for freshers:
+    - Deployed/live/production status
+    - Real users or measurable impact
+    - Advanced tech (AI, ML, real-time, cloud)
+    - Full-stack or DevOps (Docker, Kubernetes)
+    - Leadership or team management
+    - Revenue generation or scaling metrics
     
     Factors analyzed:
-    1. Years of experience (seniority level)
-    2. Job title similarity (backend/frontend/etc)
-    3. Domain keywords (relevant technologies)
-    4. Projects/internships/hackathons/open source work (for freshers)
-    5. LLM strengths as supporting signal only
+    1. Years of professional experience (determines fresher status)
+    2. Job title & domain relevance (for professionals)
+    3. Project portfolio strength (for freshers + professionals)
+    4. Deployment & real-world indicators (projects)
+    5. Measurable impact (users, revenue, metrics)
+    6. LLM strengths as supporting signal only
     
     Args:
-        candidate_experience (List[Dict]): Candidate's experience data.
+        candidate_experience (List[Dict]): Candidate's professional experience data.
         strengths (List[str]): Strengths identified by LLM analysis (supporting only).
-        projects (Optional[List[Dict]]): Candidate's projects (for fresher compensation).
+        projects (Optional[List[Dict]]): Candidate's projects/portfolio.
         project_relevance (Optional[str]): Project relevance assessment ("high", "medium", "low").
     
     Returns:
-        Dict with score (0-10) and justification.
+        Dict with score (0-10), justification, and fresher evaluation details.
     """
-    if not candidate_experience:
-        # FRESHER LOGIC: No professional experience, but check for projects
-        has_projects = projects and len(projects) > 0
-        project_strength = project_relevance in ["high", "medium"]
-        
-        if has_projects and project_strength:
-            return {
-                "score": 5,
-                "justification": "Strong academic/project experience for fresher role",
-                "is_fresher": True,
-                "experience_count": 0,
-                "total_years": 0,
-                "project_count": len(projects) if projects else 0,
-                "compensated_by_projects": True
-            }
-        
-        return {
-            "score": 0,
-            "justification": "No experience information provided",
-            "is_fresher": True,
-            "experience_count": 0,
-            "total_years": 0,
-            "project_count": len(projects) if projects else 0,
-            "compensated_by_projects": False
-        }
-    
     # Extract experience details
-    total_years = 0
+    total_years = 0.0
     job_titles = []
     descriptions = []
+    internships = 0
     
-    for exp in candidate_experience:
-        job_titles.append(exp.get("job_title", "").lower() if exp.get("job_title") else "")
-        descriptions.append(exp.get("description", "").lower() if exp.get("description") else "")
+    if candidate_experience:
+        for exp in candidate_experience:
+            job_title = exp.get("job_title", "").lower() if exp.get("job_title") else ""
+            job_titles.append(job_title)
+            descriptions.append(exp.get("description", "").lower() if exp.get("description") else "")
+            
+            # Check for internship indicators
+            if any(kw in job_title for kw in ["intern", "trainee", "apprentice"]):
+                internships += 1
+            
+            # Try to extract years from duration (e.g., "2019-2023" = 4 years)
+            duration = exp.get("duration", "")
+            if duration and "-" in duration:
+                try:
+                    parts = duration.split("-")
+                    if len(parts) == 2:
+                        start = int(parts[0].strip()[:4])
+                        end = int(parts[1].strip()[:4])
+                        total_years += max(0, (end - start))
+                except (ValueError, IndexError):
+                    pass
+    
+    # Determine fresher status
+    is_fresher = _detect_fresher_status(total_years)
+    
+    # ========================================================================
+    # FRESHER EVALUATION LOGIC
+    # ========================================================================
+    if is_fresher:
+        # For freshers, project portfolio is the primary evaluation criterion
+        fresher_eval = _evaluate_fresher_projects(projects)
         
-        # Try to extract years from duration (e.g., "2019-2023" = 4 years)
-        duration = exp.get("duration", "")
-        if duration and "-" in duration:
-            try:
-                parts = duration.split("-")
-                if len(parts) == 2:
-                    start = int(parts[0].strip()[:4])
-                    end = int(parts[1].strip()[:4])
-                    total_years += (end - start)
-            except (ValueError, IndexError):
-                pass
+        return {
+            "score": fresher_eval["score"],
+            "justification": fresher_eval["reasoning"],
+            "is_fresher": True,
+            "experience_count": len(candidate_experience) if candidate_experience else 0,
+            "total_years": total_years,
+            "internships": internships,
+            "project_count": fresher_eval["project_count"],
+            "deployment_detected": fresher_eval["deployment_detected"],
+            "measurable_impact_detected": fresher_eval["measurable_impact_detected"],
+            "fresher_strength_level": fresher_eval["fresher_strength_level"],
+            "top_project_strength": fresher_eval["top_project_strength"],
+            "average_project_strength": fresher_eval["average_project_strength"],
+            "compensated_by_projects": fresher_eval["score"] >= 5
+        }
     
-    # Analyze job titles for relevance
-    backend_keywords = ["backend", "python", "server", "api", "engineer", "developer"]
-    frontend_keywords = ["frontend", "react", "javascript", "ui", "web"]
+    # ========================================================================
+    # PROFESSIONAL EVALUATION LOGIC
+    # ========================================================================
+    # Analyze job titles and descriptions for relevance
+    backend_keywords = ["backend", "python", "server", "api", "engineer", "developer", "devops"]
+    frontend_keywords = ["frontend", "react", "javascript", "ui", "web", "vue", "angular"]
+    fullstack_keywords = ["full-stack", "full stack", "mern", "mean"]
     domain_keywords = ["software", "engineer", "developer", "architect"]
     
     titles_text = " ".join(job_titles)
     descriptions_text = " ".join(descriptions)
+    combined_text = titles_text + " " + descriptions_text
     
-    # Determine domain match
-    backend_match = any(kw in titles_text or kw in descriptions_text for kw in backend_keywords)
-    frontend_match = any(kw in titles_text or kw in descriptions_text for kw in frontend_keywords)
-    has_seniority = total_years >= 2 or any(kw in titles_text for kw in ["senior", "lead", "architect"])
+    # Determine domain match strength
+    backend_match = any(kw in combined_text for kw in backend_keywords)
+    frontend_match = any(kw in combined_text for kw in frontend_keywords)
+    fullstack_match = any(kw in combined_text for kw in fullstack_keywords)
+    has_seniority = total_years >= 2 or any(kw in titles_text for kw in ["senior", "lead", "architect", "manager"])
+    has_leadership = any(kw in combined_text for kw in ["lead", "manager", "head", "architect", "mentor"])
     
-    # Use Gemini strengths as supporting signal
+    # Use Gemini strengths as supporting signal only
     strengths_text = " ".join(strengths).lower() if strengths else ""
-    gemini_exact = any(kw in strengths_text for kw in ["exact", "direct", "relevant"])
+    gemini_exact = any(kw in strengths_text for kw in ["exact", "direct", "highly relevant", "perfectly suited"])
+    gemini_strong = any(kw in strengths_text for kw in ["strong", "good", "relevant"])
     
-    # Score logic (deterministic + Gemini support)
-    if (backend_match or frontend_match) and has_seniority and gemini_exact:
+    # Evaluate projects as bonus for professionals
+    has_strong_projects = False
+    project_boost = 0
+    if projects and len(projects) > 0:
+        fresher_eval = _evaluate_fresher_projects(projects)
+        # If professional has strong projects, add a small boost
+        if fresher_eval["score"] >= 8:
+            has_strong_projects = True
+            project_boost = 1
+    
+    # Score logic (deterministic with Gemini support)
+    if (backend_match or frontend_match or fullstack_match) and has_seniority and gemini_exact:
         score = 10
-        reasoning = f"Exact domain match with {total_years}+ years relevant experience"
-    elif (backend_match or frontend_match) and total_years >= 1:
+        reasoning = f"Exact domain match ({total_years:.1f}+ years) with seniority and leadership"
+    elif (backend_match or frontend_match or fullstack_match) and has_seniority and gemini_strong:
+        score = 9
+        reasoning = f"Strong domain match ({total_years:.1f}+ years) with seniority"
+    elif (backend_match or frontend_match or fullstack_match) and total_years >= 1 and gemini_strong:
+        score = 8
+        reasoning = f"Good domain match ({total_years:.1f} years) in relevant technology stack"
+    elif (backend_match or frontend_match or fullstack_match) and total_years >= 1:
+        score = 6 + project_boost
+        reasoning = f"Related domain experience ({total_years:.1f} years) in relevant field"
+    elif has_strong_projects and total_years >= 1:
+        score = 7
+        reasoning = f"Experience from adjacent domain ({total_years:.1f} years) with strong portfolio projects"
+    elif total_years >= 1 and internships > 0:
         score = 5
-        reasoning = f"Adjacent/related domain with {total_years} years experience"
+        reasoning = f"Limited professional experience ({total_years:.1f} years) but includes internships"
+    elif total_years >= 0.5:
+        score = 4
+        reasoning = f"Minimal professional experience ({total_years:.1f} years)"
     else:
         score = 0
         reasoning = "Experience from different domain or unclear relevance"
@@ -406,10 +747,17 @@ def calculate_experience_score(
     return {
         "score": score,
         "justification": reasoning,
-        "experience_count": len(candidate_experience),
-        "total_years": total_years,
-        "has_seniority": has_seniority,
         "is_fresher": False,
+        "experience_count": len(candidate_experience) if candidate_experience else 0,
+        "total_years": total_years,
+        "internships": internships,
+        "backend_match": backend_match,
+        "frontend_match": frontend_match,
+        "fullstack_match": fullstack_match,
+        "has_seniority": has_seniority,
+        "has_leadership": has_leadership,
+        "project_count": len(projects) if projects else 0,
+        "has_strong_projects": has_strong_projects,
         "compensated_by_projects": False
     }
 
@@ -645,7 +993,12 @@ def score_candidate(
         projects = resume_data.get("projects", [])
         
         # Calculate individual scores
-        skills_result = calculate_skill_score(jd_skills, matching_skills, resume_skills)
+        skills_result = calculate_skill_score(
+            jd_skills,
+            matching_skills,
+            resume_skills,
+            analysis_data  # NEW: Pass analysis_data with optional semantic_relevance_score
+        )
         experience_result = calculate_experience_score(
             candidate_experience,
             strengths,

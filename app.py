@@ -36,6 +36,7 @@ from utils import (
     get_timestamp
 )
 from scoring import score_candidate, rank_candidates
+from validation import validate_resume_data, create_invalid_resume_result, print_validation_result
 
 
 # ==============================================================================
@@ -199,7 +200,31 @@ class HRShortlistingPipeline:
         
         print("✓ Resume structured data extracted")
         
-        # Step 3: Perform semantic analysis
+        # Step 3: VALIDATE RESUME (NEW)
+        print("Validating resume structure...")
+        validation_result = validate_resume_data(resume_data)
+        print_validation_result(validation_result, resume_filename)
+        
+        # If resume is invalid, skip semantic analysis and scoring
+        if not validation_result.get("is_valid_resume", False):
+            print("\n⚠ Invalid resume detected")
+            print(f"Reason: {validation_result.get('reason')}")
+            print("Skipping semantic analysis and scoring...")
+            
+            # Create and return invalid resume result
+            candidate_result = create_invalid_resume_result(resume_data, validation_result)
+            
+            # Save the invalid resume result
+            saved_path = save_candidate_result(candidate_result, self.outputs_dir)
+            if saved_path:
+                print(f"✓ Invalid resume record saved: {Path(saved_path).name}")
+            
+            self.stats["resumes_failed"] += 1
+            return candidate_result
+        
+        print("✓ Resume validation passed - continuing with analysis...")
+        
+        # Step 4: Perform semantic analysis
         print("Performing semantic analysis...")
         analysis_prompt = get_analysis_prompt(self.jd_data, resume_data)
         analysis_response = ask_llm(analysis_prompt)
@@ -218,7 +243,7 @@ class HRShortlistingPipeline:
         
         print("✓ Semantic analysis complete")
         
-        # Step 4: Calculate score
+        # Step 5: Calculate score
         print("Calculating candidate score...")
         candidate_result = score_candidate(
             self.jd_data,
@@ -233,7 +258,7 @@ class HRShortlistingPipeline:
         
         print("✓ Candidate scored")
         
-        # Step 5: Save individual result
+        # Step 6: Save individual result
         saved_path = save_candidate_result(candidate_result, self.outputs_dir)
         
         if saved_path:

@@ -92,6 +92,67 @@ def load_hr_overrides() -> Dict[str, Dict[str, Any]]:
 
 
 # ==============================================================================
+# INVALID RESUME FILTERING
+# ==============================================================================
+
+def filter_invalid_resumes(candidates: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Separate valid and invalid resumes from candidate list.
+    
+    Args:
+        candidates: List of all candidate results
+    
+    Returns:
+        Tuple of (valid_candidates, invalid_candidates)
+    """
+    valid = []
+    invalid = []
+    
+    for candidate in candidates:
+        if candidate.get("status") == "INVALID_RESUME":
+            invalid.append(candidate)
+        else:
+            valid.append(candidate)
+    
+    return valid, invalid
+
+
+def display_invalid_resumes(invalid_candidates: List[Dict[str, Any]]) -> None:
+    """
+    Display invalid resumes in a professional warning format.
+    
+    Args:
+        invalid_candidates: List of invalid resume results
+    """
+    if not invalid_candidates:
+        return
+    
+    st.markdown("---")
+    st.subheader("⚠️ Invalid Resumes Detected")
+    
+    for candidate in invalid_candidates:
+        name = candidate.get("candidate_name", "Unknown")
+        reason = candidate.get("validation_reason", "Unknown reason")
+        valid_fields = candidate.get("valid_fields_count", 0)
+        
+        with st.expander(f"❌ **{name}** - Invalid Resume", expanded=False):
+            st.error(f"This uploaded file does not appear to be a valid resume.")
+            st.markdown("**Validation Result:**")
+            st.write(f"- **Reason:** {reason}")
+            st.write(f"- **Valid Resume Fields Found:** {valid_fields}/6")
+            
+            # Show field details if available
+            field_details = candidate.get("field_details", {})
+            if field_details:
+                st.markdown("**Field Analysis:**")
+                for field_name, details in field_details.items():
+                    status = "✓" if details.get("is_valid") else "✗"
+                    st.write(f"  {status} {field_name}: {details.get('reason', '')}")
+            
+            st.info("This document was not scored. Please upload a valid resume to include in the evaluation.")
+
+
+# ==============================================================================
 # MERGE AND CALCULATE
 # ==============================================================================
 
@@ -100,12 +161,17 @@ def merge_ai_and_hr_data(candidates: List[Dict[str, Any]], overrides: Dict[str, 
     Merge AI results with HR overrides.
     
     For each candidate:
+    - Skip if status is INVALID_RESUME
     - If override exists: use HR score for final ranking
     - If no override: use AI score
     """
     merged = []
     
     for candidate in candidates:
+        # Skip invalid resumes - they are not ranked
+        if candidate.get("status") == "INVALID_RESUME":
+            continue
+        
         name = candidate.get("candidate_name", "")
         ai_score = candidate.get("final_score", 0)
         
@@ -432,8 +498,15 @@ def render_dashboard():
         st.warning("⚠️ No candidate results found. Please run the backend pipeline first.")
         return
     
-    # Merge AI and HR data
-    merged_candidates = merge_ai_and_hr_data(candidates, overrides)
+    # Separate valid and invalid resumes
+    valid_candidates, invalid_candidates = filter_invalid_resumes(candidates)
+    
+    # Display invalid resumes first if any
+    if invalid_candidates:
+        display_invalid_resumes(invalid_candidates)
+    
+    # Merge AI and HR data (only for valid candidates)
+    merged_candidates = merge_ai_and_hr_data(valid_candidates, overrides)
     
     # Apply filters
     filtered_candidates = apply_filters(merged_candidates)
