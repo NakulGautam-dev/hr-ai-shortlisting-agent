@@ -928,13 +928,6 @@ Reports Generated: PDF, HTML, JSON
 - **Full-Stack**: Backend + Frontend implementation
 - **HR Knowledge**: Understanding hiring workflows
 
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
----
 
 ## 👨‍💻 Author
 
