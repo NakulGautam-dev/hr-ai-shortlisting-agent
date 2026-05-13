@@ -13,7 +13,10 @@ An enterprise-grade resume shortlisting system that combines the semantic unders
 - [Tech Stack](#-tech-stack)
 - [Architecture](#-system-architecture)
 - [Scoring Methodology](#-scoring-methodology)
-- [Demo & Screenshots](#-demo-video)
+
+### 🎬 Project Showcase
+- [🎥 Demo Video & Screenshots](#-demo-video)
+
 - [Installation](#-installation)
 - [Environment Setup](#-environment-setup)
 - [Running the Project](#-running-the-project)
@@ -25,7 +28,6 @@ An enterprise-grade resume shortlisting system that combines the semantic unders
 - [Why This Project Stands Out](#-why-this-project-stands-out)
 - [Support](#-support)
 - [Contributing](#-contributing)
-- [License](#-license)
 - [Author](#-author)
 
 ---
@@ -713,13 +715,20 @@ _A complete walkthrough of the AI HR Resume Shortlisting System showcasing JD pa
 <img width="1457" height="867" alt="dashboard" src="https://github.com/user-attachments/assets/be56de33-0c5b-474d-aeec-6df5cd73806c" />
 
 
+
+
+
 #### 2️⃣ Candidate Detail View
 
 **Comprehensive analysis of individual candidate**
 
 <img width="1470" height="873" alt="candidate1" src="https://github.com/user-attachments/assets/cf1bc08c-2528-41d0-83aa-0f6d86661740" />
 
+
+
 <img width="1462" height="860" alt="candidate2" src="https://github.com/user-attachments/assets/f09363d6-ea97-41d9-8da0-6ecb3a03feea" />
+
+
 
 
 
@@ -729,7 +738,11 @@ _A complete walkthrough of the AI HR Resume Shortlisting System showcasing JD pa
 
 <img width="1468" height="861" alt="charts1" src="https://github.com/user-attachments/assets/e32580d8-c476-4927-b35a-f1169405ace6" />
 
+
+
 <img width="1470" height="858" alt="charts2" src="https://github.com/user-attachments/assets/4a62239a-76da-4355-8a06-d6a407798ede" />
+
+
 
 
 #### 4️⃣ HR Review System
@@ -738,9 +751,15 @@ _A complete walkthrough of the AI HR Resume Shortlisting System showcasing JD pa
 
 <img width="1470" height="877" alt="hr1" src="https://github.com/user-attachments/assets/940ea1ae-ca84-4b1d-8549-798f522aeb4a" />
 
+
+
 <img width="1464" height="866" alt="hr2" src="https://github.com/user-attachments/assets/5d7e77a2-f01d-4e83-a6ce-3e36664dfe71" />
 
+
+
 <img width="1450" height="860" alt="hr3" src="https://github.com/user-attachments/assets/149e2589-ce96-4397-8054-9cd0e557d489" />
+
+
 
 
 
@@ -749,7 +768,13 @@ _A complete walkthrough of the AI HR Resume Shortlisting System showcasing JD pa
 **Side-by-side analysis of top candidates**
 
 
+
+
 <img width="1468" height="870" alt="comparison" src="https://github.com/user-attachments/assets/49d3b484-55bf-4e62-b5ba-6dea310f1100" />
+
+
+
+
 
 
 ---
@@ -1282,9 +1307,7 @@ python app.py
 - [ ] Candidate feedback generation
 - [ ] Resume recommendation engine
 
-## License
 
-[Your License Here]
 
 ## Support
 
