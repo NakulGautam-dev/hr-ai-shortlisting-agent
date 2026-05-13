@@ -688,13 +688,11 @@ EOF
 
 <div align="center">
 
-### � Watch Demo Video (3-5 minutes)
+## 🎥 Project Demo Video
 
-[![YouTube Demo Video](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtube.com)
-[![LinkedIn Demo](https://img.shields.io/badge/LinkedIn-Quick%20Demo-blue?style=for-the-badge&logo=linkedin)](https://linkedin.com)
-[![GitHub Releases](https://img.shields.io/badge/GitHub-Releases-black?style=for-the-badge&logo=github)](https://github.com/NakulGautam-dev/hr-ai-shortlisting-agent/releases)
+[![Google Drive Demo](https://img.shields.io/badge/Google%20Drive-Watch%20Demo-success?style=for-the-badge&logo=googledrive)](https://drive.google.com/file/d/1Yzh75bPJjFwJivx0v1s6OhL9C4OVAPqF/view?usp=sharing)
 
-_Coming Soon: Video walkthrough demonstrating the complete workflow from resume upload to final ranking_
+_A complete walkthrough of the AI HR Resume Shortlisting System showcasing JD parsing, semantic matching, candidate scoring, comparison system, human review workflow, and report generation._
 
 </div>
 
@@ -712,162 +710,47 @@ _Coming Soon: Video walkthrough demonstrating the complete workflow from resume 
 
 **Real-time metrics and candidate rankings**
 
-```
-┌────────────────────────────────────────────────────────┐
-│  AI HR Resume Shortlisting System                      │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│  📊 Metrics:                                           │
-│  ├─ Total Candidates: 47                              │
-│  ├─ Strong Hires (85+): 12                             │
-│  ├─ Average Score: 72.4                                │
-│  └─ Processing Time: 2m 34s                             │
-│                                                        │
-│  🏆 Top Candidates:                                    │
-│  ├─ 1️⃣  John Smith (92.5) 🟢 Strong Hire              │
-│  ├─ 2️⃣  Jane Doe (88.3) 🟢 Strong Hire                │
-│  ├─ 3️⃣  Bob Johnson (76.1) 🔵 Hire                     │
-│  └─ ... 44 more candidates                             │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+<img width="1457" height="867" alt="dashboard" src="https://github.com/user-attachments/assets/be56de33-0c5b-474d-aeec-6df5cd73806c" />
+
 
 #### 2️⃣ Candidate Detail View
 
 **Comprehensive analysis of individual candidate**
 
-```
-┌────────────────────────────────────────────────────────┐
-│  John Smith - Senior Backend Engineer                  │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│  📈 Overall Score: 92.5 / 100  🟢 STRONG HIRE          │
-│                                                        │
-│  Component Breakdown:                                  │
-│  ├─ Skills:         9.2/10  [████████░░] 92%           │
-│  ├─ Experience:     9.5/10  [█████████░] 95%           │
-│  ├─ Education:      8.5/10  [████████░░] 85%           │
-│  ├─ Projects:       9.3/10  [█████████░] 93%           │
-│  └─ Communication:  9.2/10  [████████░░] 92%           │
-│                                                        │
-│  💼 Skills Match:                                      │
-│  ├─ Python (0.96) ✅                                   │
-│  ├─ Django (0.94) ✅                                   │
-│  ├─ PostgreSQL (0.92) ✅                               │
-│  ├─ AWS (0.89) ✅                                      │
-│  └─ Kubernetes (0.45) ⚠️                               │
-│                                                        │
-│  📝 Strengths:                                         │
-│  • 6+ years backend development experience             │
-│  • Strong project portfolio (8 deployed projects)      │
-│  • Leadership experience (mentored 3 junior devs)      │
-│                                                        │
-│  ⚠️  Weaknesses:                                       │
-│  • Limited Kubernetes experience                       │
-│  • No microservices architecture mentioned             │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+<img width="1470" height="873" alt="candidate1" src="https://github.com/user-attachments/assets/cf1bc08c-2528-41d0-83aa-0f6d86661740" />
+
+<img width="1462" height="860" alt="candidate2" src="https://github.com/user-attachments/assets/f09363d6-ea97-41d9-8da0-6ecb3a03feea" />
+
+
 
 #### 3️⃣ Analytics & Charts
 
 **Visual performance metrics**
 
-```
-┌────────────────────────────────────────────────────────┐
-│  Analytics Dashboard                                   │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│  Score Distribution:                                   │
-│  100 │                                                 │
-│   90 │           ┌─┐                                   │
-│   80 │      ┌─┐  │ │  ┌─┐                              │
-│   70 │   ┌─┐│ │  │ │  │ │   ┌─┐                        │
-│   60 │   │ ││ │  │ │  │ │   │ │   ┌─┐                  │
-│   50 │─┐ │ ││ │  │ │  │ │   │ │   │ │                  │
-│      └─┴─┴─┴┴─┴──┴─┴──┴─┴───┴─┴───┴─┘                  │
-│        50  60  70  80  90  100 Scores                   │
-│                                                        │
-│  Recommendation Tiers:                                 │
-│  🟢 Strong Hire:    12 (25.5%)  ████████               │
-│  🔵 Hire:           23 (48.9%)  ██████████████          │
-│  🟡 Consider:       10 (21.3%)  ██████                  │
-│  🔴 Reject:          2 (4.3%)   █                       │
-│                                                        │
-│  Top 5 Skills Requested:                               │
-│  1. Python         (95% avg match)                     │
-│  2. AWS            (88% avg match)                     │
-│  3. Django         (92% avg match)                     │
-│  4. PostgreSQL     (89% avg match)                     │
-│  5. Docker         (76% avg match)                     │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+<img width="1468" height="861" alt="charts1" src="https://github.com/user-attachments/assets/e32580d8-c476-4927-b35a-f1169405ace6" />
+
+<img width="1470" height="858" alt="charts2" src="https://github.com/user-attachments/assets/4a62239a-76da-4355-8a06-d6a407798ede" />
+
 
 #### 4️⃣ HR Review System
 
 **Human-in-the-loop override interface**
 
-```
-┌────────────────────────────────────────────────────────┐
-│  HR Review & Override                                  │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│  Candidate: Jane Doe                                   │
-│  AI Score: 83.2 🔵 HIRE                                │
-│                                                        │
-│  [HR Decision]                                         │
-│  Override Score: ┌────────┐  (0-100)                   │
-│                 │   93   │                             │
-│                 └────────┘                             │
-│                                                        │
-│  Recommendation: 🟢 STRONG HIRE                        │
-│                                                        │
-│  [Override Reason]                                     │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │ Exceptional communication skills in interview. │  │
-│  │ FastAPI experience is equivalent to Django.    │  │
-│  │ Shows strong leadership potential.             │  │
-│  └─────────────────────────────────────────────────┘  │
-│                                                        │
-│  [Submit Override]  [Clear]  [Cancel]                 │
-│                                                        │
-│  Previous Overrides:                                   │
-│  • Bob Johnson: AI 71 → HR 78 (+7) [Potential]         │
-│  • Alice Brown: AI 89 → HR 92 (+3) [Excellent fit]    │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+<img width="1470" height="877" alt="hr1" src="https://github.com/user-attachments/assets/940ea1ae-ca84-4b1d-8549-798f522aeb4a" />
+
+<img width="1464" height="866" alt="hr2" src="https://github.com/user-attachments/assets/5d7e77a2-f01d-4e83-a6ce-3e36664dfe71" />
+
+<img width="1450" height="860" alt="hr3" src="https://github.com/user-attachments/assets/149e2589-ce96-4397-8054-9cd0e557d489" />
+
+
 
 #### 5️⃣ Candidate Comparison
 
 **Side-by-side analysis of top candidates**
 
-```
-┌────────────────────┬────────────────────┬────────────────────┐
-│   John Smith       │   Jane Doe         │   Bob Johnson      │
-├────────────────────┼────────────────────┼────────────────────┤
-│ Score: 92.5        │ Score: 88.3        │ Score: 76.1        │
-│ 🟢 Strong Hire     │ 🟢 Strong Hire     │ 🔵 Hire            │
-├────────────────────┼────────────────────┼────────────────────┤
-│ Skills: 9.2/10     │ Skills: 8.7/10     │ Skills: 7.2/10     │
-│ Exp: 9.5/10        │ Exp: 9.2/10        │ Exp: 7.5/10        │
-│ Edu: 8.5/10        │ Edu: 8.5/10        │ Edu: 7.8/10        │
-│ Proj: 9.3/10       │ Proj: 8.9/10       │ Proj: 7.1/10       │
-│ Comm: 9.2/10       │ Comm: 8.7/10       │ Comm: 7.9/10       │
-├────────────────────┼────────────────────┼────────────────────┤
-│ • Python (0.96)    │ • Python (0.92)    │ • Java (0.88)      │
-│ • Django (0.94)    │ • Django (0.90)    │ • Spring (0.85)    │
-│ • AWS (0.89)       │ • FastAPI (0.87)   │ • SQL (0.86)       │
-│ • PostgreSQL (0.92)│ • PostgreSQL (0.91)│ • Spring Boot      │
-│ • Docker (0.88)    │ • AWS (0.82)       │ • Microservices    │
-├────────────────────┼────────────────────┼────────────────────┤
-│ ✅ 6+ yrs exp     │ ✅ 3+ yrs exp     │ ✅ 4 yrs exp      │
-│ ✅ Leadership      │ ✅ 5 projects      │ ✅ Good portfolio   │
-│ ✅ 8 projects      │ ✅ Strong comm     │ ⚠️  Limited AWS     │
-│ ⚠️  No K8s        │ ⚠️  No Kubernetes │ ⚠️  Java focus     │
-└────────────────────┴────────────────────┴────────────────────┘
-```
+
+<img width="1468" height="870" alt="comparison" src="https://github.com/user-attachments/assets/49d3b484-55bf-4e62-b5ba-6dea310f1100" />
+
 
 ---
 
