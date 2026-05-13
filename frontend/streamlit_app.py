@@ -34,6 +34,8 @@ import utils
 import dashboard
 import charts
 import candidate_view
+import hr_override
+import dashboard_transparency
 
 # ==============================================================================
 # PAGE CONFIGURATION
@@ -406,124 +408,12 @@ def render_skill_tags(matched_skills: List[str], missing_skills: List[str]):
 # ==============================================================================
 
 def page_dashboard():
-    """Render the main dashboard page with key metrics and overview."""
-    st.title("📊 Dashboard")
-    st.markdown("---")
+    """
+    Render the main dashboard page with AI vs HR Override Transparency System.
     
-    if st.session_state.candidates_df is None or len(st.session_state.candidates_df) == 0:
-        st.info("📁 Select a batch file from the sidebar to view dashboard")
-        return
-    
-    df = st.session_state.candidates_df
-    
-    # Calculate metrics
-    total_candidates = len(df)
-    avg_score = df["final_score"].mean()
-    highest_score = df["final_score"].max()
-    shortlisted = len(df[df["final_score"] >= 75])
-    rejected = len(df[df["final_score"] < 50])
-    
-    # Display metric cards in columns
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        st.metric("Total Candidates", total_candidates, delta=None)
-    with col2:
-        st.metric("Average Score", f"{avg_score:.1f}", delta=None)
-    with col3:
-        st.metric("Highest Score", f"{highest_score:.1f}", delta=None)
-    with col4:
-        st.metric("Shortlisted", shortlisted, delta=f"{(shortlisted/total_candidates*100):.0f}%")
-    with col5:
-        st.metric("Rejected", rejected, delta=f"{(rejected/total_candidates*100):.0f}%")
-    
-    st.markdown("---")
-    
-    # Top candidate section
-    st.subheader("🏆 Top Candidate")
-    top_candidate = df.iloc[0]
-    
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        st.markdown(f"### {top_candidate['candidate_name']}")
-        if "overall_recommendation" in top_candidate or "analysis" in top_candidate:
-            analysis = top_candidate.get("overall_recommendation") or top_candidate.get("analysis", {}).get("overall_recommendation", "Excellent candidate")
-            st.markdown(f"*{analysis}*")
-    with col2:
-        st.markdown(render_score_badge(top_candidate["final_score"]), unsafe_allow_html=True)
-    
-    # Top candidate score breakdown
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    component_scores = {
-        "Skills": top_candidate.get("components", {}).get("skills", 0),
-        "Experience": top_candidate.get("components", {}).get("experience", 0),
-        "Education": top_candidate.get("components", {}).get("education", 0),
-        "Projects": top_candidate.get("components", {}).get("projects", 0),
-        "Communication": top_candidate.get("components", {}).get("communication", 0)
-    }
-    
-    for (label, score), col in zip(component_scores.items(), [col1, col2, col3, col4, col5]):
-        with col:
-            color = get_score_color(score)
-            st.markdown(f"<p style='text-align: center; color: {color}; font-weight: bold'>{label}</p>", unsafe_allow_html=True)
-            st.markdown(f"<p style='text-align: center; font-size: 1.5rem; color: {color}; font-weight: bold'>{score:.0f}</p>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Score distribution
-    st.subheader("📈 Score Distribution")
-    fig = px.histogram(
-        df,
-        x="final_score",
-        nbins=15,
-        title="Distribution of Candidate Scores",
-        labels={"final_score": "Final Score", "count": "Number of Candidates"},
-        color_discrete_sequence=["#667eea"]
-    )
-    fig.update_layout(
-        showlegend=False,
-        hovermode="x unified",
-        template="plotly_white"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Status breakdown pie chart
-    col1, col2 = st.columns(2)
-    with col1:
-        status_counts = pd.cut(df["final_score"], bins=[0, 50, 75, 100], labels=["Rejected", "Consider", "Shortlisted"]).value_counts()
-        fig_pie = px.pie(
-            values=status_counts.values,
-            names=status_counts.index,
-            title="Candidate Status Breakdown",
-            color_discrete_map={"Rejected": "#ef4444", "Consider": "#f59e0b", "Shortlisted": "#10b981"}
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-    
-    with col2:
-        # Component averages
-        if all(key in df.columns or f"components.{key.lower()}" in str(df.columns) for key in ["skills", "experience", "education"]):
-            components_df = pd.DataFrame({
-                "Component": ["Skills", "Experience", "Education", "Projects", "Communication"],
-                "Average Score": [
-                    df["components"].apply(lambda x: x.get("skills", 0) if isinstance(x, dict) else 0).mean() if "components" in df.columns else df.get("components", [{}])[0].get("skills", 5),
-                    df["components"].apply(lambda x: x.get("experience", 0) if isinstance(x, dict) else 0).mean() if "components" in df.columns else 5,
-                    df["components"].apply(lambda x: x.get("education", 0) if isinstance(x, dict) else 0).mean() if "components" in df.columns else 5,
-                    df["components"].apply(lambda x: x.get("projects", 0) if isinstance(x, dict) else 0).mean() if "components" in df.columns else 5,
-                    df["components"].apply(lambda x: x.get("communication", 0) if isinstance(x, dict) else 0).mean() if "components" in df.columns else 5,
-                ]
-            })
-            
-            fig_components = px.bar(
-                components_df,
-                x="Component",
-                y="Average Score",
-                title="Average Component Scores",
-                color="Average Score",
-                color_continuous_scale="Viridis"
-            )
-            fig_components.update_layout(template="plotly_white", showlegend=False)
-            st.plotly_chart(fig_components, use_container_width=True)
+    Shows AI scores, HR overrides, and final rankings in a clean ATS-style interface.
+    """
+    dashboard_transparency.render_dashboard()
 
 
 def page_rankings():
@@ -819,7 +709,7 @@ def render_sidebar():
         st.markdown("### 📍 Navigation")
         current_page = st.radio(
             "Select Page",
-            ["Upload", "Dashboard", "Rankings", "Candidate Analysis", "Analytics", "System Info"],
+            ["Upload", "Dashboard", "Rankings", "Candidate Analysis", "HR Review", "Analytics", "System Info"],
             label_visibility="collapsed"
         )
         st.session_state.current_page = current_page
@@ -892,12 +782,16 @@ def main():
         # Render upload UI - connects frontend to backend
         upload_section.render_upload_page()
     elif st.session_state.current_page == "Dashboard":
-        # Render dashboard with candidate results
-        dashboard.render_dashboard(st.session_state.candidates_df)
+        # Render dashboard with AI vs HR transparency system
+        # ✅ IMPORTANT: Using dashboard_transparency (not old dashboard module)
+        page_dashboard()
     elif st.session_state.current_page == "Rankings":
         page_rankings()
     elif st.session_state.current_page == "Candidate Analysis":
         page_candidate_analysis()
+    elif st.session_state.current_page == "HR Review":
+        # Render HR override and review system
+        hr_override.render_hr_override(st.session_state.batch_data if st.session_state.batch_data else None)
     elif st.session_state.current_page == "Analytics":
         # Render charts and visualizations
         charts.render_charts(st.session_state.candidates_df)

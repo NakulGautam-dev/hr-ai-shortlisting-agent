@@ -21,18 +21,6 @@ import pandas as pd
 import plotly.graph_objects as go
 from typing import Dict, List, Any, Optional, Tuple
 import json
-from pathlib import Path
-import sys
-
-# Report generation - use absolute import
-try:
-    import report_generator
-except ImportError:
-    # Fallback for when running in different context
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("report_generator", Path(__file__).parent / "report_generator.py")
-    report_generator = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(report_generator)
 
 
 # ==============================================================================
@@ -694,33 +682,6 @@ def render_export_section(candidate: Dict[str, Any]) -> None:
             file_name=f"{candidate.get('candidate_name', 'candidate').replace(' ', '_')}_analysis.json",
             mime="application/json"
         )
-        # Also create and provide HTML and PDF via report generator
-        try:
-            pdf_path = report_generator.REPORTS_DIR / f"{report_generator.safe_filename(candidate.get('candidate_name','candidate'))}_report.pdf"
-            html_path = report_generator.REPORTS_DIR / f"{report_generator.safe_filename(candidate.get('candidate_name','candidate'))}_report.html"
-            json_path = report_generator.REPORTS_DIR / f"{report_generator.safe_filename(candidate.get('candidate_name','candidate'))}_report.json"
-
-            # Generate assets on-demand
-            if not pdf_path.exists():
-                report_generator.generate_candidate_pdf(candidate, pdf_path)
-            if not html_path.exists():
-                report_generator.generate_candidate_html(candidate, html_path)
-            if not json_path.exists():
-                report_generator.export_json_report(candidate, json_path)
-
-            with open(pdf_path, 'rb') as f:
-                pdf_bytes = f.read()
-                st.download_button('📥 Download PDF Report', data=pdf_bytes, file_name=pdf_path.name, mime='application/pdf')
-
-            with open(html_path, 'r', encoding='utf-8') as f:
-                html_bytes = f.read().encode('utf-8')
-                st.download_button('🌐 Download HTML Report', data=html_bytes, file_name=html_path.name, mime='text/html')
-
-            with open(json_path, 'r', encoding='utf-8') as f:
-                json_bytes = f.read().encode('utf-8')
-                st.download_button('🔁 Export JSON Report', data=json_bytes, file_name=json_path.name, mime='application/json')
-        except Exception as e:
-            st.warning(f"Report generation failed: {str(e)}")
     
     with col2:
         # Create CSV export of breakdown
@@ -758,32 +719,9 @@ def render_candidate_view(candidate_results: Optional[List[Dict[str, Any]]] = No
     Args:
         candidate_results (Optional[List[Dict]]): List of candidate results from backend
     """
-    # Handle case where candidate_results is a JSON string
-    if isinstance(candidate_results, str):
-        try:
-            candidate_results = json.loads(candidate_results)
-        except Exception as e:
-            st.warning(f"Could not parse candidate results: {str(e)}")
-            candidate_results = None
-    
-    # Handle case where candidate_results is a dict with candidates/results key
-    if isinstance(candidate_results, dict):
-        if "candidates" in candidate_results:
-            candidate_results = candidate_results["candidates"]
-        elif "results" in candidate_results:
-            candidate_results = candidate_results["results"]
-        else:
-            # If it's a single candidate dict, wrap it in a list
-            candidate_results = [candidate_results]
-    
     # Handle empty state
     if not candidate_results or len(candidate_results) == 0:
         st.info("📋 Analyze resumes to view detailed candidate insights.")
-        return
-    
-    # Ensure candidate_results is a list
-    if not isinstance(candidate_results, list):
-        st.warning("Invalid candidate data format")
         return
     
     # Sort candidates by score (highest first)
